@@ -27,6 +27,18 @@ const client = new Client({
 
 let busy = false;
 let me = null;
+let latestQr = null;
+
+const { startQrServer } = require("./qr_server");
+if (process.env.PORT && process.env.QR_TOKEN) {
+  startQrServer({
+    port: Number(process.env.PORT),
+    getToken: () => process.env.QR_TOKEN,
+    getQr: () => latestQr,
+  }).then(() => console.log(`[qr] QR page available at /?t=<QR_TOKEN>`));
+} else if (process.env.PORT && !process.env.QR_TOKEN) {
+  console.log("[qr] QR_TOKEN not set — QR web page disabled");
+}
 
 async function askApi(question) {
   const res = await fetch(`${config.apiUrl}/ask`, {
@@ -40,6 +52,7 @@ async function askApi(question) {
 }
 
 client.on("qr", (qr) => {
+  latestQr = qr;
   console.log("[auth] Scan this QR in WhatsApp: Settings > Linked Devices > Link a Device");
   qrcode.generate(qr, { small: true });
 });
