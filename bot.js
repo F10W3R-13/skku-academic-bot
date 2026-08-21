@@ -60,20 +60,34 @@ client.on("qr", (qr) => {
 client.on("ready", async () => {
   me = (client.info && client.info.wid && client.info.wid._serialized) || null;
   console.log(`[ready] WhatsApp connected as ${me || "unknown"}.`);
-  try {
-    const chats = await client.getChats();
-    for (const c of chats) {
-      if (c.isGroup) console.log(`[group] ${c.name} | ${c.id._serialized}`);
+  const listChats = async (attempt) => {
+    try {
+      const chats = await client.getChats();
+      for (const c of chats) {
+        if (c.isGroup) console.log(`[group] ${c.name} | ${c.id._serialized}`);
+      }
+    } catch (e) {
+      if (attempt < 3) {
+        console.log(`[ready] chat list not ready, retrying in 10s (${attempt}/3)...`);
+        setTimeout(() => listChats(attempt + 1), 10000);
+      } else {
+        console.error("[ready] could not list chats after retries — use [discover] lines instead");
+      }
     }
-  } catch (e) {
-    console.error("[ready] could not list chats:", e);
-  }
+  };
+  listChats(1);
 });
 
 client.on("message", async (msg) => {
   try {
     if (msg.fromMe) return;
-    if (!GROUP_IDS.includes(msg.from)) return;
+    if (!GROUP_IDS.includes(msg.from)) {
+      const body0 = (msg.body || "").trim();
+      if (GROUP_IDS.length === 0 && msg.from.endsWith("@g.us") && body0) {
+        console.log(`[discover] unconfigured group seen: ${msg.from} — set GROUP_IDS to this ID`);
+      }
+      return;
+    }
     const body = (msg.body || "").trim();
     if (!body) return;
 
