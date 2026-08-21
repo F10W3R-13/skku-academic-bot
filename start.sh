@@ -11,4 +11,9 @@ for i in $(seq 1 60); do
   sleep 1
 done
 [ "$ok" = "1" ] || { echo "[start] API failed to become healthy"; exit 1; }
+
+AUTH_DIR="${AUTH_DIR:-.}"
+rm -f "$AUTH_DIR"/.wwebjs_auth/session/Singleton* 2>/dev/null \
+  && echo "[start] cleared stale Chromium locks (if any)" || true
+
 exec node bot.js

@@ -16,7 +16,13 @@ if (!Array.isArray(GROUP_IDS) || GROUP_IDS.length === 0) {
 
 const client = new Client({
   authStrategy: new LocalAuth({ dataPath: process.env.AUTH_DIR || undefined }),
-  puppeteer: { args: ["--no-sandbox"] },
+  puppeteer: {
+    args: [
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  },
 });
 
 let busy = false;
