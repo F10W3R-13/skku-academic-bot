@@ -37,3 +37,35 @@ def test_corrupt_index_file_triggers_rebuild(tmp_path: Path, monkeypatch):
     index_path = tmp_path / "index.json"
     index_path.write_text("{not valid json", encoding="utf-8")
     assert ib.build_index(folder, index_path) is True
+
+
+def test_index_rebuilds_when_embed_model_changes(tmp_path, monkeypatch):
+    """임베딩 모델을 바꾸면 벡터 차원이 달라지므로 인덱스를 다시 만들어야 한다."""
+    import regulations.index_builder as ib
+
+    monkeypatch.setattr(ib, "embed_texts", lambda texts: [[0.0] * 4 for _ in texts])
+    folder = tmp_path / "corpus"
+    folder.mkdir()
+    (folder / "a.md").write_text("# A\n\ntext", encoding="utf-8")
+    index_path = tmp_path / "index.json"
+
+    assert ib.build_index(folder, index_path) is True
+    # 같은 모델·같은 파일이면 다시 만들지 않는다
+    assert ib.build_index(folder, index_path) is False
+    # 모델이 바뀌면 다시 만든다
+    monkeypatch.setattr(ib, "EMBED_MODEL", "some-other-embedding-model")
+    assert ib.build_index(folder, index_path) is True
+
+
+def test_index_records_embed_model(tmp_path, monkeypatch):
+    import json
+
+    import regulations.index_builder as ib
+
+    monkeypatch.setattr(ib, "embed_texts", lambda texts: [[0.0] * 4 for _ in texts])
+    folder = tmp_path / "corpus"
+    folder.mkdir()
+    (folder / "a.md").write_text("# A\n\ntext", encoding="utf-8")
+    index_path = tmp_path / "index.json"
+    ib.build_index(folder, index_path)
+    assert json.loads(index_path.read_text(encoding="utf-8"))["embed_model"] == ib.EMBED_MODEL

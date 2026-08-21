@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from regulations.chunker import chunk_markdown
-from regulations.openai_client import embed_texts
+from regulations.openai_client import EMBED_MODEL, embed_texts
 
 
 def list_corpus_files(folder: Path) -> list[Path]:
@@ -30,7 +30,9 @@ def build_index(folder: Path, index_path: Path, force: bool = False) -> bool:
     if not force and index_path.exists():
         try:
             old = json.loads(index_path.read_text(encoding="utf-8"))
-            if old.get("source_hash") == current_hash:
+            # 임베딩 모델이 바뀌면 벡터 차원/의미가 달라지므로 무조건 다시 만든다.
+            same_model = old.get("embed_model", EMBED_MODEL) == EMBED_MODEL
+            if old.get("source_hash") == current_hash and same_model:
                 return False
         except (json.JSONDecodeError, UnicodeDecodeError):
             pass  # corrupt index -> fall through to rebuild
@@ -45,7 +47,10 @@ def build_index(folder: Path, index_path: Path, force: bool = False) -> bool:
         c["embedding"] = emb
 
     index_path.write_text(
-        json.dumps({"source_hash": current_hash, "chunks": chunks}, ensure_ascii=False),
+        json.dumps(
+            {"source_hash": current_hash, "embed_model": EMBED_MODEL, "chunks": chunks},
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
     return True

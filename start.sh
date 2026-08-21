@@ -4,7 +4,7 @@ echo "[start] launching RAG API..."
 python -m uvicorn api:app --host 0.0.0.0 --port 8765 &
 echo "[start] waiting for API health..."
 ok=0
-for i in $(seq 1 60); do
+for i in $(seq 1 300); do
   if python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=2)" 2>/dev/null; then
     echo "[start] API healthy"; ok=1; break
   fi

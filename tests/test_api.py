@@ -13,6 +13,7 @@ def client(monkeypatch):
          "embedding": [0.0, 1.0]},
     ]
     monkeypatch.setattr(api, "embed_query", lambda q: [1.0, 0.0])
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
     monkeypatch.setattr(api, "generate_answer", lambda q, ctx: ("You need 140 credits.", ["졸업요건"]))
     return TestClient(api.app)
 
@@ -36,3 +37,106 @@ def test_retrieve_orders_by_similarity(client):
 
 def test_ask_rejects_empty_question(client):
     assert client.post("/ask", json={"question": ""}).status_code == 422
+
+
+def test_corpus_dir_defaults_to_bot_corpus_not_parent(monkeypatch):
+    """개인 성적/학적 파일이 있는 상위 폴더를 기본 코퍼스로 잡으면 안 된다."""
+    import importlib
+
+    monkeypatch.delenv("CORPUS_DIR", raising=False)
+    reloaded = importlib.reload(api)
+    try:
+        assert reloaded.CORPUS_DIR == reloaded.BOT_DIR / "corpus"
+        assert reloaded.CORPUS_DIR != reloaded.BOT_DIR.parent
+    finally:
+        importlib.reload(api)
+
+
+def test_corpus_dir_env_override_still_works(monkeypatch, tmp_path):
+    import importlib
+
+    monkeypatch.setenv("CORPUS_DIR", str(tmp_path))
+    reloaded = importlib.reload(api)
+    try:
+        assert reloaded.CORPUS_DIR == tmp_path
+    finally:
+        monkeypatch.delenv("CORPUS_DIR", raising=False)
+        importlib.reload(api)
+
+
+def test_expand_queries_adds_korean_query(monkeypatch):
+    monkeypatch.setattr(
+        api, "openai_chat", lambda system, user, max_tokens=None: "수강신청 정정 증원 여석"
+    )
+    qs = api.expand_queries("What if all courses are full?")
+    assert qs[0] == "What if all courses are full?"
+    assert "수강신청" in qs[1]
+
+
+def test_expand_queries_falls_back_when_translation_fails(monkeypatch):
+    def boom(system, user, max_tokens=None):
+        raise RuntimeError("no api key")
+
+    monkeypatch.setattr(api, "openai_chat", boom)
+    assert api.expand_queries("hello") == ["hello"]
+
+
+def test_retrieve_uses_best_score_across_queries(monkeypatch):
+    api.CHUNKS = [
+        {"source": "english_doc", "heading_path": "a", "text": "dorm", "embedding": [1.0, 0.0]},
+        {"source": "korean_doc", "heading_path": "b", "text": "수강신청", "embedding": [0.0, 1.0]},
+    ]
+    api._MATRIX = None
+    # 영어 질의는 english_doc 쪽, 한국어 확장 질의는 korean_doc 쪽을 가리킨다.
+    monkeypatch.setattr(api, "expand_queries", lambda q: ["english", "한국어"])
+    monkeypatch.setattr(
+        api, "embed_query", lambda q: [1.0, 0.0] if q == "english" else [0.0, 1.0]
+    )
+    sources = [c["source"] for c in api.retrieve("q", k=2)]
+    assert set(sources) == {"english_doc", "korean_doc"}
+
+
+def test_retrieve_returns_empty_when_index_empty(monkeypatch):
+    api.CHUNKS = []
+    api._MATRIX = None
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
+    assert api.retrieve("anything") == []
+
+
+def test_openai_chat_retries_when_max_tokens_unsupported(monkeypatch):
+    calls = []
+
+    class FakeResp:
+        class _C:
+            class _M:
+                content = " ok "
+            message = _M()
+        choices = [_C()]
+
+    class FakeClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    calls.append(kwargs)
+                    if "max_tokens" in kwargs:
+                        raise RuntimeError("Unsupported parameter: 'max_tokens'")
+                    return FakeResp()
+
+    monkeypatch.setattr("regulations.openai_client.get_client", lambda: FakeClient)
+    assert api.openai_chat("sys", "user") == "ok"
+    assert "max_tokens" in calls[0]
+    assert "max_completion_tokens" in calls[1]
+
+
+def test_openai_chat_does_not_swallow_real_errors(monkeypatch):
+    class FakeClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    raise RuntimeError("insufficient_quota")
+
+    monkeypatch.setattr("regulations.openai_client.get_client", lambda: FakeClient)
+    with pytest.raises(RuntimeError, match="insufficient_quota"):
+        api.openai_chat("sys", "user")

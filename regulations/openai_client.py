@@ -4,10 +4,12 @@ from functools import lru_cache
 from dotenv import load_dotenv
 from openai import OpenAI
 
-EMBED_MODEL = "text-embedding-3-small"
-CHAT_MODEL = "gpt-4o-mini"
-
 load_dotenv()
+
+# 모델은 .env 로 바꿀 수 있다 (코드 수정 없이 교체/롤백 가능).
+#   EMBED_MODEL 을 바꾸면 인덱스가 자동으로 전체 재빌드된다(차원이 달라지므로).
+EMBED_MODEL = os.getenv("EMBED_MODEL", "text-embedding-3-small")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-5.6-luna")
 
 
 @lru_cache(maxsize=1)
