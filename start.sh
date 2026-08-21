@@ -13,7 +13,7 @@ done
 [ "$ok" = "1" ] || { echo "[start] API failed to become healthy"; exit 1; }
 
 AUTH_DIR="${AUTH_DIR:-.}"
-rm -f "$AUTH_DIR"/.wwebjs_auth/session/Singleton* 2>/dev/null \
-  && echo "[start] cleared stale Chromium locks (if any)" || true
+find "$AUTH_DIR" -name 'Singleton*' -delete 2>/dev/null || true
+echo "[start] cleared stale Chromium locks (if any)"
 
 exec node bot.js
