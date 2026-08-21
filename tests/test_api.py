@@ -140,3 +140,54 @@ def test_openai_chat_does_not_swallow_real_errors(monkeypatch):
     monkeypatch.setattr("regulations.openai_client.get_client", lambda: FakeClient)
     with pytest.raises(RuntimeError, match="insufficient_quota"):
         api.openai_chat("sys", "user")
+
+
+def _chunk(source, idx, text, emb):
+    return {"source": source, "heading_path": f"{source} > {idx}", "text": text, "embedding": emb}
+
+
+def test_retrieve_fills_in_sibling_chunks_of_the_same_document(monkeypatch):
+    """한 문서가 여러 조각으로 갈려도 같은 문서의 나머지 조각이 함께 들어와야 한다."""
+    api.CHUNKS = [
+        _chunk("학생증", 1, "신청 시기는 2월 말", [1.0, 0.0]),
+        _chunk("학생증", 2, "수령처는 600주년기념관 1층", [0.6, 0.8]),
+        _chunk("학생증", 3, "재발급 7,000원", [0.5, 0.86]),
+        _chunk("무관문서", 1, "관계없는 내용", [0.0, 1.0]),
+    ]
+    api._MATRIX = None
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
+    monkeypatch.setattr(api, "embed_query", lambda q: [1.0, 0.0])
+
+    got = api.retrieve("어디서 받나요?", k=1)
+    sources = [c["source"] for c in got]
+    assert sources[:3] == ["학생증"] * 3, "같은 문서의 나머지 조각이 따라 들어와야 함"
+    assert "600주년기념관" in " ".join(c["text"] for c in got)
+
+
+def test_retrieve_respects_context_budget(monkeypatch):
+    """큰 문서가 컨텍스트를 통째로 먹지 않아야 한다."""
+    api.CHUNKS = [_chunk("큰문서", i, "가" * 400, [1.0, 0.0]) for i in range(50)]
+    api._MATRIX = None
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
+    monkeypatch.setattr(api, "embed_query", lambda q: [1.0, 0.0])
+    monkeypatch.setattr(api, "MAX_CONTEXT_CHARS", 2000)
+
+    got = api.retrieve("q", k=1)
+    total = sum(len(c["text"]) for c in got)
+    assert total <= 2000
+    assert len(got) == 5
+
+
+def test_retrieve_keeps_document_order_within_a_source(monkeypatch):
+    """조각들이 원문 순서대로 읽혀야 모델이 절차를 제대로 이해한다."""
+    api.CHUNKS = [
+        _chunk("문서", 0, "1단계", [1.0, 0.0]),
+        _chunk("문서", 1, "2단계", [0.9, 0.1]),
+        _chunk("문서", 2, "3단계", [0.95, 0.05]),
+    ]
+    api._MATRIX = None
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
+    monkeypatch.setattr(api, "embed_query", lambda q: [1.0, 0.0])
+
+    got = api.retrieve("q", k=1)
+    assert [c["text"] for c in got] == ["1단계", "2단계", "3단계"]

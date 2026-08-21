@@ -34,6 +34,7 @@
 | `EMBED_MODEL` | `text-embedding-3-small` | 검색용 임베딩. **바꾸면 인덱스가 자동 전체 재빌드됨** |
 | `MAX_ANSWER_TOKENS` | `700` | 답변 길이. 400=요점만, 1200=절차를 단계별로 |
 | `MAX_QUERY_TOKENS` | `80` | 내부 질의 확장용(건드릴 일 거의 없음) |
+| `MAX_CONTEXT_CHARS` | `12000` | 모델에 넣는 발췌문 총량 상한. 한 문서가 여러 조각으로 갈려 사실이 흩어지는 걸 보완하되, 큰 문서가 컨텍스트를 다 먹지 않게 막는다 |
 | `CORPUS_DIR` | `bot/corpus` | |
 | `INDEX_PATH` | `bot/index.json` | |
 
