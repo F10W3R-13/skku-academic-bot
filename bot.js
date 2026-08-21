@@ -80,14 +80,19 @@ client.on("ready", async () => {
 
 client.on("message", async (msg) => {
   try {
-    if (msg.fromMe) return;
     if (!GROUP_IDS.includes(msg.from)) {
       const body0 = (msg.body || "").trim();
-      if (GROUP_IDS.length === 0 && msg.from.endsWith("@g.us") && body0) {
-        console.log(`[discover] unconfigured group seen: ${msg.from} — set GROUP_IDS to this ID`);
+      if (GROUP_IDS.length === 0 && body0) {
+        const chatId = [msg.from, msg.to].find(
+          (j) => typeof j === "string" && j.endsWith("@g.us")
+        );
+        if (chatId) {
+          console.log(`[discover] unconfigured group seen: ${chatId} — set GROUP_IDS to this ID`);
+        }
       }
       return;
     }
+    if (msg.fromMe) return;
     const body = (msg.body || "").trim();
     if (!body) return;
 
