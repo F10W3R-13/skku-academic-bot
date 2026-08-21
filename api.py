@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -70,11 +71,25 @@ def expand_queries(question: str) -> list[str]:
     """
     queries = [question]
     try:
-        korean = openai_chat(QUERY_EXPANSION_PROMPT, question, max_tokens=MAX_QUERY_TOKENS).strip()
-        if korean and korean.lower() != question.strip().lower():
-            queries.append(korean[:300])
-    except Exception:  # noqa: BLE001 - 검색 보조 기능이므로 실패해도 답변은 계속
-        pass
+        korean = openai_chat(
+            QUERY_EXPANSION_PROMPT, question, max_tokens=MAX_QUERY_TOKENS
+        ).strip()
+    except Exception as exc:  # noqa: BLE001 - 답변은 계속하되, 왜 실패했는지는 남긴다
+        print(f"[expand_queries] 실패 - {type(exc).__name__}: {exc}", file=sys.stderr)
+        return queries
+
+    if not korean:
+        # 추론 모델은 추론 토큰도 max_completion_tokens 예산에서 쓴다.
+        # 예산이 모자라면 예외 없이 빈 문자열이 돌아온다.
+        print(
+            f"[expand_queries] 번역 결과가 비어 있음 (MAX_QUERY_TOKENS={MAX_QUERY_TOKENS}). "
+            "값을 올려보세요.",
+            file=sys.stderr,
+        )
+    elif korean.lower() == question.strip().lower():
+        print("[expand_queries] 번역이 원문과 동일해 건너뜀", file=sys.stderr)
+    else:
+        queries.append(korean[:300])
     return queries
 
 
@@ -144,7 +159,7 @@ def generate_answer(question: str, contexts: list[dict]) -> tuple[str, list[str]
 #   짧게(400): 요점만, 왓츠앱에서 읽기 편함 / 길게(1200): 절차를 단계별로 다 풀어 씀
 MAX_ANSWER_TOKENS = int(os.getenv("MAX_ANSWER_TOKENS", "700"))
 # 질의 확장은 키워드 몇 개면 되므로 따로 짧게 잡는다.
-MAX_QUERY_TOKENS = int(os.getenv("MAX_QUERY_TOKENS", "80"))
+MAX_QUERY_TOKENS = int(os.getenv("MAX_QUERY_TOKENS", "400"))
 
 
 def openai_chat(system: str, user: str, max_tokens: int | None = None) -> str:
@@ -169,7 +184,7 @@ def openai_chat(system: str, user: str, max_tokens: int | None = None) -> str:
             resp = get_client().chat.completions.create(
                 model=CHAT_MODEL, messages=messages, **kwargs
             )
-            return resp.choices[0].message.content.strip()
+            return (resp.choices[0].message.content or "").strip()
         except TypeError as exc:  # SDK 가 인자 자체를 모르는 경우
             last_error = exc
         except Exception as exc:  # noqa: BLE001

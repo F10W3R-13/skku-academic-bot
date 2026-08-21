@@ -29,6 +29,16 @@ def main() -> None:
     api._ensure_index(force_check=True)
     print(f"corpus chunks : {len(api.CHUNKS)}")
 
+    print("\n[번역 호출 원본 확인]")
+    try:
+        raw = api.openai_chat(
+            api.QUERY_EXPANSION_PROMPT, question, max_tokens=api.MAX_QUERY_TOKENS
+        )
+        print(f"  model={api.CHAT_MODEL} MAX_QUERY_TOKENS={api.MAX_QUERY_TOKENS}")
+        print(f"  결과: {raw!r}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  실패: {type(exc).__name__}: {exc}")
+
     queries = api.expand_queries(question)
     print(f"\n[질의 확장]")
     for i, q in enumerate(queries):

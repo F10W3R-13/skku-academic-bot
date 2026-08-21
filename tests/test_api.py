@@ -191,3 +191,38 @@ def test_retrieve_keeps_document_order_within_a_source(monkeypatch):
 
     got = api.retrieve("q", k=1)
     assert [c["text"] for c in got] == ["1단계", "2단계", "3단계"]
+
+
+def test_expand_queries_reports_empty_translation(monkeypatch, capsys):
+    """추론 모델이 예산 부족으로 빈 응답을 줄 때, 조용히 넘어가지 말고 이유를 남겨야 한다."""
+    monkeypatch.setattr(api, "openai_chat", lambda system, user, max_tokens=None: "")
+    assert api.expand_queries("hello") == ["hello"]
+    assert "비어 있음" in capsys.readouterr().err
+
+
+def test_expand_queries_reports_failure_reason(monkeypatch, capsys):
+    def boom(system, user, max_tokens=None):
+        raise RuntimeError("model_not_found")
+
+    monkeypatch.setattr(api, "openai_chat", boom)
+    assert api.expand_queries("hello") == ["hello"]
+    assert "model_not_found" in capsys.readouterr().err
+
+
+def test_openai_chat_handles_none_content(monkeypatch):
+    class FakeResp:
+        class _C:
+            class _M:
+                content = None
+            message = _M()
+        choices = [_C()]
+
+    class FakeClient:
+        class chat:
+            class completions:
+                @staticmethod
+                def create(**kwargs):
+                    return FakeResp()
+
+    monkeypatch.setattr("regulations.openai_client.get_client", lambda: FakeClient)
+    assert api.openai_chat("sys", "user") == ""
