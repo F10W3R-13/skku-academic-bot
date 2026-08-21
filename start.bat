@@ -1,6 +1,7 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
+set "CORPUS_DIR=%~dp0corpus"
 
 echo [1/3] Starting regulations API...
 start "SKKU Bot - API" cmd /k "python -m uvicorn api:app --port 8765"
