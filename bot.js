@@ -8,6 +8,7 @@ const config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
 const GROUP_IDS = process.env.GROUP_IDS
   ? process.env.GROUP_IDS.split(",").map(s => s.trim()).filter(Boolean)
   : config.groupIds;
+const GROUP_DISCOVERED = new Set();
 if (!Array.isArray(GROUP_IDS) || GROUP_IDS.length === 0) {
   console.log("[setup] No target groups configured.");
   console.log("[setup] Set GROUP_IDS env var (comma-separated) or config.json groupIds, using the [group] IDs logged below.");
@@ -82,12 +83,13 @@ client.on("message", async (msg) => {
   try {
     if (!GROUP_IDS.includes(msg.from)) {
       const body0 = (msg.body || "").trim();
-      if (GROUP_IDS.length === 0 && body0) {
+      if (body0) {
         const chatId = [msg.from, msg.to].find(
           (j) => typeof j === "string" && j.endsWith("@g.us")
         );
-        if (chatId) {
-          console.log(`[discover] unconfigured group seen: ${chatId} — set GROUP_IDS to this ID`);
+        if (chatId && !GROUP_DISCOVERED.has(chatId)) {
+          GROUP_DISCOVERED.add(chatId);
+          console.log(`[discover] group not in GROUP_IDS: ${chatId}`);
         }
       }
       return;
