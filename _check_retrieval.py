@@ -24,7 +24,8 @@ def main() -> None:
     if len(sys.argv) < 2:
         print(__doc__)
         raise SystemExit(1)
-    question = " ".join(sys.argv[1:])
+    args = [a for a in sys.argv[1:] if a != "--dump"]
+    question = " ".join(args)
 
     api._ensure_index(force_check=True)
     print(f"corpus chunks : {len(api.CHUNKS)}")
@@ -52,12 +53,41 @@ def main() -> None:
         sims = (matrix @ v) / (norms * np.linalg.norm(v) + 1e-9)
         best = sims if best is None else np.maximum(best, sims)
 
-    print(f"\n[상위 10개 청크]")
+    print(f"\n[유사도 상위 10개]")
     for rank, i in enumerate(np.argsort(best)[::-1][:10], 1):
         c = api.CHUNKS[i]
         preview = c["text"].replace("\n", " ")[:70]
         print(f"  {rank:2d}. {best[i]:.3f}  {c['heading_path']}")
         print(f"      {preview}...")
+
+    # 여기부터가 진짜 중요한 부분: 모델이 실제로 받는 컨텍스트.
+    # 위 상위 10개와 다르다 (retrieve() 는 같은 문서의 나머지 조각을 채워 넣는다).
+    contexts = api.retrieve(question)
+    total = sum(len(c["text"]) for c in contexts)
+    print(f"\n[모델에 실제로 들어가는 컨텍스트] {len(contexts)}개 청크 / {total:,}자 "
+          f"(상한 {api.MAX_CONTEXT_CHARS:,})")
+    by_source: dict[str, int] = {}
+    for c in contexts:
+        by_source[c["source"]] = by_source.get(c["source"], 0) + 1
+    for src, n in by_source.items():
+        print(f"  - {src}: {n}개 조각")
+
+    joined = "\n".join(c["text"] for c in contexts)
+    print("\n[핵심 사실이 컨텍스트에 들어갔는지]")
+    for label, needle in [
+        ("신청 시기(2월)", "2월"),
+        ("신청 시기(8월)", "8월"),
+        ("수령처(600주년기념관)", "600주년"),
+        ("신청처(idcard)", "idcard"),
+        ("증원 신청(책가방)", "책가방"),
+        ("정원여석", "정원여석"),
+    ]:
+        print(f"  {'있음' if needle in joined else '없음'}  {label}")
+
+    if "--dump" in sys.argv:
+        print("\n[컨텍스트 전문]")
+        for i, c in enumerate(contexts, 1):
+            print(f"\n--- [{i}] {c['heading_path']} ---\n{c['text']}")
 
 
 if __name__ == "__main__":

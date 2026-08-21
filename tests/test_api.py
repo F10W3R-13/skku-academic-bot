@@ -226,3 +226,39 @@ def test_openai_chat_handles_none_content(monkeypatch):
 
     monkeypatch.setattr("regulations.openai_client.get_client", lambda: FakeClient)
     assert api.openai_chat("sys", "user") == ""
+
+
+def test_retrieve_does_not_fill_loosely_related_documents(monkeypatch):
+    """애매하게 걸린 문서까지 통째로 넣으면 정작 중요한 문서의 신호가 희석된다."""
+    api.CHUNKS = (
+        [_chunk("정답문서", i, f"핵심 사실 {i}", [1.0, 0.0]) for i in range(5)]
+        + [_chunk("애매문서", i, f"곁다리 {i}", [0.55, 0.84]) for i in range(20)]
+    )
+    api._MATRIX = None
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
+    monkeypatch.setattr(api, "embed_query", lambda q: [1.0, 0.0])
+
+    got = api.retrieve("q", k=8)
+    counts: dict[str, int] = {}
+    for c in got:
+        counts[c["source"]] = counts.get(c["source"], 0) + 1
+    assert counts["정답문서"] == 5, "1위 문서는 조각이 모두 채워져야 함"
+    assert counts.get("애매문서", 0) <= 8, "점수 낮은 문서까지 통째로 들어오면 안 됨"
+
+
+def test_retrieve_fills_second_document_when_scores_are_close(monkeypatch):
+    """점수가 비등한 문서는 함께 채운다."""
+    api.CHUNKS = (
+        [_chunk("A문서", i, f"A{i}", [1.0, 0.0]) for i in range(3)]
+        + [_chunk("B문서", i, f"B{i}", [0.999, 0.045]) for i in range(3)]
+    )
+    api._MATRIX = None
+    monkeypatch.setattr(api, "expand_queries", lambda q: [q])
+    monkeypatch.setattr(api, "embed_query", lambda q: [1.0, 0.0])
+
+    # k=4 여야 두 문서가 모두 씨앗에 들어간다 (씨앗에 없는 문서는 채우지 않는다)
+    got = api.retrieve("q", k=4)
+    counts: dict[str, int] = {}
+    for c in got:
+        counts[c["source"]] = counts.get(c["source"], 0) + 1
+    assert counts == {"A문서": 3, "B문서": 3}
