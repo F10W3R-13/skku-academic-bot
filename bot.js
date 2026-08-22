@@ -84,30 +84,45 @@ client.on("ready", async () => {
 
 const handledIds = new Set();
 
-async function processAsk(msg) {
-  if (handledIds.has(msg.id._serialized)) return;
-  handledIds.add(msg.id._serialized);
+// reply: 남의 메시지는 msg.reply(인용답장), 본인 메시지는 그룹 ID로 직접 전송 —
+// wwebjs는 fromMe 메시지의 from/to 의미가 반대라 msg.reply 의 경로가 달라질 수 있어
+// 셀프 경로는 chatId 를 명시해 보낸다.
+async function processAsk(msg, opts = {}) {
+  const reply = opts.reply || ((text) => msg.reply(text));
+  const id = msg.id && msg.id._serialized;
+  if (!id) {
+    console.log("[ask:no-id]");
+    return;
+  }
+  if (handledIds.has(id)) {
+    console.log("[ask:duplicate]");
+    return;
+  }
+  handledIds.add(id);
   if (handledIds.size > 500) handledIds.clear();
 
   const triggered = extractTriggeredQuestion(msg, me);
   if (!triggered) {
-    console.log("[skip] no trigger");
+    console.log("[ask:no-trigger]");
     return;
   }
   if (!triggered.question) {
-    await msg.reply(USAGE);
+    console.log("[ask:usage]");
+    await reply(USAGE);
     return;
   }
   const question = triggered.question;
 
   if (!allowOnce(msg.from)) {
-    await msg.reply(
+    console.log("[ask:cooldown]");
+    await reply(
       `One moment please — I can take one question every ${Math.round(COOLDOWN_MS / 1000)}s. 🙏`
     );
     return;
   }
   if (busy) {
-    await msg.reply("One moment please — I answer one question at a time. 🙏");
+    console.log("[ask:busy]");
+    await reply("One moment please — I answer one question at a time. 🙏");
     return;
   }
   busy = true;
@@ -117,13 +132,13 @@ async function processAsk(msg) {
     data = await askApi(question);
   } catch (e) {
     console.error("[err] API:", e.message);
-    await msg.reply("Sorry, I'm having trouble right now. Please try again in a moment.");
+    await reply("Sorry, I'm having trouble right now. Please try again in a moment.");
     return;
   } finally {
     busy = false;
   }
 
-  await msg.reply(buildReply(data));
+  await reply(buildReply(data));
   console.log("[a] replied.");
 }
 
@@ -163,8 +178,8 @@ client.on("message_create", async (msg) => {
     if (!chatId || !GROUP_IDS.includes(chatId)) return;
     const body = (msg.body || "").trim();
     if (!/^!ask\b/i.test(body)) return;
-    console.log("[self] owner !ask");
-    await processAsk(msg);
+    console.log(`[self] owner !ask from=${msg.from} to=${msg.to}`);
+    await processAsk(msg, { reply: (text) => client.sendMessage(chatId, text) });
   } catch (e) {
     console.error("[err]", e);
   }
