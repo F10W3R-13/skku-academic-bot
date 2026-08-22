@@ -2,6 +2,9 @@ const fs = require("fs");
 const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 const { extractTriggeredQuestion, USAGE } = require("./trigger");
+const { buildReply, makeCooldown, COOLDOWN_MS } = require("./reply_guard");
+
+const allowOnce = makeCooldown();
 
 const config = JSON.parse(fs.readFileSync("./config.json", "utf8"));
 
@@ -109,6 +112,12 @@ client.on("message", async (msg) => {
     }
     const question = triggered.question;
 
+    if (!allowOnce(msg.from)) {
+      await msg.reply(
+        `One moment please — I can take one question every ${Math.round(COOLDOWN_MS / 1000)}s. 🙏`
+      );
+      return;
+    }
     if (busy) {
       await msg.reply("One moment please — I answer one question at a time. 🙏");
       return;
@@ -126,10 +135,7 @@ client.on("message", async (msg) => {
       busy = false;
     }
 
-    const sources = Array.isArray(data.sources) && data.sources.length
-      ? `\n\n📚 Source: ${data.sources.join(", ")}`
-      : "";
-    await msg.reply(`${data.answer}${sources}`);
+    await msg.reply(buildReply(data));
     console.log("[a] replied.");
   } catch (e) {
     console.error("[err]", e);
