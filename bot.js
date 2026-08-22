@@ -89,11 +89,11 @@ const handledIds = new Set();
 // 셀프 경로는 chatId 를 명시해 보낸다.
 async function processAsk(msg, opts = {}) {
   const reply = opts.reply || ((text) => msg.reply(text));
-  const id = msg.id && msg.id._serialized;
-  if (!id) {
-    console.log("[ask:no-id]");
-    return;
-  }
+  // LID 주소 체계의 message_create 페이로드는 msg.id가 비어있는 경우이 있어
+  // 합성 키로 중복제거를 대체한다 (message_create/ack 이중 수신도 같은 키로 잡힘).
+  const id =
+    (msg.id && msg.id._serialized) ||
+    `${msg.from}|${msg.to}|${msg.timestamp}|${(msg.body || "").slice(0, 80)}`;
   if (handledIds.has(id)) {
     console.log("[ask:duplicate]");
     return;
