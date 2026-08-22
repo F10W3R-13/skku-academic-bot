@@ -6,3 +6,7 @@ __pycache__/
 node_modules/
 .pytest_cache/
 corpus/*.pdf
+
+# 평가 실행 결과/진단 로그는 커밋 제외 (용량)
+eval/results/
+eval/diag_failing.txt
