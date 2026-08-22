@@ -1,27 +1,34 @@
-"""검색 품질 점검용 스크립트 (봇과 무관, 필요할 때만 실행).
+"""답변 생성까지 포함한 종단 점검 스크립트 (봇과 무관, 필요할 때만 실행).
 
 사용법:
-    python _check_retrieval.py "What should I do if all courses are full?"
+    python _check_answer.py "When and where can I get my student ID card?"
 
-무엇을 보여주나:
-  1) 메시지가 어떤 서브질문으로 분해됐고, 파트별 한국어 키워드가 뭔지
-  2) 실제로 어떤 문서 청크가 상위로 잡혔는지 (유사도 점수 포함)
+한 번의 실행에서 질의 분해 -> 확장 키워드 -> 컨텍스트 -> 핵심 사실 -> 답변까지
+전부 보여준다. 분해/번역은 실행마다 달라지므로(모델 샘플링) 검색 점검과 답변
+점검을 따로 돌리면 서로 다른 컨텍스트를 보고 있어 판단이 어긋난다 — 그래서
+분해/번역/임베딩을 한 번만 하고 캐시로 재사용한다(화면 = 실제).
 
-답이 코퍼스에 있는데도 엉뚱한 문서가 잡히면 검색 문제,
-아예 관련 문서가 없으면 자료 문제다.
-
-주의: 분해/번역은 실행마다 결과가 달라진다(모델 샘플링). 화면에 보여준 질의와
-retrieve() 가 실제 쓴 질의가 다르면 디버깅이 안 되므로, 이 스크립트는 분해/번역/
-임베딩을 한 번만 하고 캐시로 재사용한다 — 화면 = 실제.
+판독법:
+    - 컨텍스트에 핵심 사실이 없다  -> 검색 문제 (키워드가 어디로 샜는지 본다)
+    - 컨텍스트에 있는데 답변이 틀림 -> 생성 문제 (프롬프트/모델)
 """
 import os
 import sys
 
 os.environ.setdefault("CORPUS_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "corpus"))
 
-import numpy as np  # noqa: E402
-
 import api  # noqa: E402
+
+
+# 벤치마크 질문(학생증) 기준 핵심 사실. 다른 질문을 볼 때는 출력을 참고용으로만.
+NEEDLES = [
+    ("신청 시기(2월)", "2월"),
+    ("신청 시기(8월)", "8월"),
+    ("수령처(600주년기념관)", "600주년"),
+    ("신청처(idcard)", "idcard"),
+    ("연락처(02-760-1077)", "02-760-1077"),
+    ("즉시 발급(실전 메모)", "즉시 발급"),
+]
 
 
 def main() -> None:
@@ -32,7 +39,6 @@ def main() -> None:
     question = " ".join(args)
 
     api._ensure_index(force_check=True)
-    print(f"corpus chunks : {len(api.CHUNKS)}")
 
     # 분해와 번역은 여기서 딱 한 번 한다. 아래에서 retrieve() 가 같은 결과를
     # 쓰도록 함수를 캐시 버전으로 갈아끼운다 — 그래야 화면이 곧 실제다.
@@ -54,36 +60,19 @@ def main() -> None:
             embed_cache[q] = original_embed(q)
         return embed_cache[q]
 
-    print(f"\n[질의 분해] model={api.CHAT_MODEL} MAX_QUERY_TOKENS={api.MAX_QUERY_TOKENS}")
+    print(f"[질의 분해] model={api.CHAT_MODEL} MAX_QUERY_TOKENS={api.MAX_QUERY_TOKENS}")
     for i, p in enumerate(parts, 1):
         print(f"  파트 {i}: {p}")
         for kw in cached_expand(p)[1:]:
             print(f"      키워드: {kw}")
 
-    # 여기부터가 진짜 중요한 부분: 모델이 실제로 받는 컨텍스트.
-    # 위 상위 10개와 다를 수 있다 — retrieve() 는 파트별로 씨앗 자리를 나눠 가지고,
-    # 같은 문서의 나머지 조각을 채워 넣기 때문.
     api.split_questions = lambda q: parts   # 방금 본 파트를 그대로 쓰게 한다
     api.expand_queries = cached_expand      # 방금 본 번역을 그대로 쓰게 한다
     api.embed_query = cached_embed          # 방금 본 벡터를 그대로 쓰게 한다
 
-    # 표시되는 순위도 실제 검색과 같은 식으로 계산한다(임베딩 + 제목 가점).
-    best = None
-    for p in parts:
-        s = api._score(cached_expand(p))
-        best = s if best is None else np.maximum(best, s)
-
-    print(f"\n[유사도 상위 10개]")
-    for rank, i in enumerate(np.argsort(best)[::-1][:10], 1):
-        c = api.CHUNKS[i]
-        preview = c["text"].replace("\n", " ")[:70]
-        print(f"  {rank:2d}. {best[i]:.3f}  {c['heading_path']}")
-        print(f"      {preview}...")
-
     contexts = api.retrieve(question)
     total = sum(len(c["text"]) for c in contexts)
-    print(f"\n[모델에 실제로 들어가는 컨텍스트] {len(contexts)}개 청크 / {total:,}자 "
-          f"(상한 {api.MAX_CONTEXT_CHARS:,})")
+    print(f"\n[컨텍스트] {len(contexts)}개 청크 / {total:,}자 (상한 {api.MAX_CONTEXT_CHARS:,})")
     by_source: dict[str, int] = {}
     for c in contexts:
         by_source[c["source"]] = by_source.get(c["source"], 0) + 1
@@ -92,20 +81,18 @@ def main() -> None:
 
     joined = "\n".join(c["text"] for c in contexts)
     print("\n[핵심 사실이 컨텍스트에 들어갔는지]")
-    for label, needle in [
-        ("신청 시기(2월)", "2월"),
-        ("신청 시기(8월)", "8월"),
-        ("수령처(600주년기념관)", "600주년"),
-        ("신청처(idcard)", "idcard"),
-        ("증원 신청(책가방)", "책가방"),
-        ("정원여석", "정원여석"),
-    ]:
+    for label, needle in NEEDLES:
         print(f"  {'있음' if needle in joined else '없음'}  {label}")
 
     if "--dump" in sys.argv:
         print("\n[컨텍스트 전문]")
         for i, c in enumerate(contexts, 1):
             print(f"\n--- [{i}] {c['heading_path']} ---\n{c['text']}")
+
+    answer, sources = api.generate_answer(question, contexts)
+    print("\n[답변]")
+    print(answer)
+    print(f"\n[sources] {', '.join(sources)}")
 
 
 if __name__ == "__main__":
