@@ -32,7 +32,9 @@ It consists of Korean student dormitories (E-House, G-House, and K-House) and in
 | Exchange students (Male) | - | - | ● | - | ● |
 | Exchange students (Female) | - | - | - | ● | - |
 
-> 원문 표가 병합셀 구조라 위 표는 읽기 쉽게 재구성한 것입니다. 정확한 배정은 기숙사 홈페이지 공지를 확인하세요.
+> The original tables use merged cells; the tables above were reconstructed for readability. The gender arrangement shown is the university's standard published layout, but **actual assignments can differ by semester** — houses or floors may be reassigned by gender depending on demand (e.g., female exchange students were assigned to C-House for Fall 2026). Your own assignment notice or GLS (신청/자격관리 → 기숙사 → 기숙사정보조회, Dormitory Info) is always authoritative, so if your assignment looks different from this table, trust your assignment, not the table.
+>
+> Assignment questions: Myeongryunhaksa office (명륜학사 행정실) — check-in/check-out (입퇴사) 02-760-0167, exchange-student residence life (교환학생 사생지도) 02-760-0168. Notices: https://dorm.skku.edu (기숙사 공지사항).
 
 ##### Dormitory Application Period and Procedure
 
