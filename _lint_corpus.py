@@ -26,7 +26,7 @@ sys.path.insert(0, str(BOT_DIR))
 
 from regulations.chunker import chunk_markdown  # noqa: E402
 
-STOP_SEGMENTS = {"학교생활", "등", "and", "the", "of"}
+STOP_SEGMENTS = {"학교생활", "서울생활", "등", "and", "the", "of"}
 
 
 def title_segments(name: str) -> set[str]:
