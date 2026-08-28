@@ -261,7 +261,7 @@ def main() -> None:
             for k in [
                 "MAX_CONTEXT_CHARS", "MAX_FILL_SOURCES", "FILL_MIN_SCORE",
                 "FILL_SCORE_MARGIN", "MIN_SEED_SCORE", "MAX_SEEDS_PER_SOURCE",
-                "MAX_FILL_CHUNKS_PER_SOURCE", "TITLE_BONUS", "TITLE_CONCENTRATION",
+                "MAX_FILL_CHUNKS_PER_SOURCE", "LEXICAL_BONUS_MAX",
                 "MAX_ANSWER_TOKENS", "MAX_QUERY_TOKENS",
             ]
             if hasattr(api, k)

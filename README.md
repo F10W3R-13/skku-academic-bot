@@ -37,6 +37,16 @@
 | `MAX_CONTEXT_CHARS` | `12000` | 모델에 넣는 발췌문 총량 상한. 한 문서가 여러 조각으로 갈려 사실이 흩어지는 걸 보완하되, 큰 문서가 컨텍스트를 다 먹지 않게 막는다 |
 | `CORPUS_DIR` | `bot/corpus` | |
 | `INDEX_PATH` | `bot/index.json` | |
+| `QA_LOG_DIR` | `bot/logs` | 질문·답변 QA 로그 폴더 |
+
+## QA 로그 (답변 품질 조사)
+
+- 모든 `!ask` 질문과 답변이 `logs/qa_YYYYMMDD.jsonl` 에 하루 파일 하나로 쌓인다.
+  기록 필드: 시각, 질문, 답변, 근거 문서(`sources`), 근거 발췌 원문(`contexts`), 검색 최고점수(`retrieval.top_score`), 소요시간, 성공/실패. `contexts` 덕분에 나중에 API 재호출 없이 로그만으로 답변 충실성 심판이 가능하다.
+- **발신자·그룹 ID는 기록하지 않는다** (API 계층에 그 정보가 없다). 로그 폴더는 커밋 제외(`.gitignore`).
+- 답변이 허술했던 질문 뽑기: `python _analyze_qa.py` (기본 `logs/`, `--days 7` 로 최근 일주일만).
+  검색 최고점수가 0.45 미만이면 코퍼스에 없는 주제일 가능성이 큼 → 자료 보강(크롤링) 1순위.
+- 로그 폴더 변경: `.env`에 `QA_LOG_DIR=...` (Railway 등에서 볼륨 경로로 지정).
 
 ## 검색이 이상할 때
 

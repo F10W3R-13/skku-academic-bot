@@ -10,3 +10,9 @@ corpus/*.pdf
 # 평가 실행 결과/진단 로그는 커밋 제외 (용량)
 eval/results/
 eval/diag_failing.txt
+logs/
+
+# 질의 캐시(split/expand LLM 결과)는 실행 환경별 상태라 커밋하지 않는다
+query_cache.json
+# 강제 종료 시 남는 원자적 교체용 임시파일
+query_cache.json.*.tmp

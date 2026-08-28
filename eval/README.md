@@ -69,7 +69,7 @@ python eval/run_eval.py --only absent,adversarial   # 심판용만 재수집
 
 ## 회귀 테스트로 쓰기
 
-`api.py`의 검색 파라미터(FILL_MIN_SCORE, TITLE_BONUS, MAX_CONTEXT_CHARS 등)를
+`api.py`의 검색 파라미터(FILL_MIN_SCORE, LEXICAL_BONUS, MAX_CONTEXT_CHARS 등)를
 바꿨을 때는 반드시 `run_eval.py` 전체를 돌려 이전 `results/` 결과의 counts와
 비교한다. 성공률이 오르고 아무 카테고리도 깨지지 않았을 때만 변경을 유지한다.
 
