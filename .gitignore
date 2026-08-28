@@ -17,3 +17,4 @@ query_cache.json
 # 강제 종료 시 남는 원자적 교체용 임시파일
 query_cache.json.*.tmp
 .railway/
+.firecrawl/
