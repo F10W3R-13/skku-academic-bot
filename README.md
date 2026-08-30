@@ -37,7 +37,9 @@
 | `MAX_CONTEXT_CHARS` | `12000` | 모델에 넣는 발췌문 총량 상한. 한 문서가 여러 조각으로 갈려 사실이 흩어지는 걸 보완하되, 큰 문서가 컨텍스트를 다 먹지 않게 막는다 |
 | `CORPUS_DIR` | `bot/corpus` | |
 | `INDEX_PATH` | `bot/index.json` | |
-| `QA_LOG_DIR` | `bot/logs` | 질문·답변 QA 로그 폴더 |
+| `QA_LOG_DIR` | `bot/logs` | 질문·답변 QA 로그 폴더 (Railway: `/data/logs` 권장) |
+| `QUERY_CACHE_DIR` | 봇 폴더 | 질의 분해/번역 캐시 폴더. 프롬프트나 모델을 바꾸면 자동 무효화 |
+| `LEXICAL_BONUS` | `0.06` | 검색 점수에 더해지는 BM25 어휘 정합 보너스 상한 |
 
 ## QA 로그 (답변 품질 조사)
 
