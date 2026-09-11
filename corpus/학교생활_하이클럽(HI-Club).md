@@ -39,6 +39,11 @@ keywords: exchange student, buddy program, orientation, field trip, sports day, 
 | 필드 트립 | Field Trip | 한국의 역사와 문화를 직접 체험 — 유적지, 한옥마을, 테마파크 등 방문 |
 | 스포츠 데이 | Sports Day | 교환학생과 하이클럽 부원이 함께 협력·경쟁하며 국적을 초월한 교류 |
 
+## 행사 참가 의무와 일정 충돌 (attendance & schedule conflicts)
+
+- **행사별 참가 의무(필참/선택)와 정확한 일정은 학기마다 다르다** — 고정 규정 페이지는 없고, 학기 초 국제처 공지와 교환학생 오리엔테이션 안내로 확정된다. 놓쳤다면 교환학생 공지사항 게시판에서 해당 학기 공지를 확인한다: https://www.skku.edu/skku/international/globalComm/international01.do
+- **다른 동아리·모임과 일정이 겹치면**: 속한 버디(HI-Club 멤버)에게 먼저 물어보고, 없으면 국제처(외국인유학생지원팀)에 그 행사가 자신에게 필참인지, 다른 날 참석·불참 신청이 가능한지 문의한다. 행사에 따라 대안이 있을 수 있으니 **확인 없이 그냥 빠지지 않는 것**이 원칙.
+
 ## 버디 프로그램 (Buddy Program)
 
 버디 프로그램은 **하이클럽 부원 1명이 인바운드 교환학생 4~6명과 매칭되어 한 학기 동안 교류**하는 제도입니다.
