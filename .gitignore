@@ -18,3 +18,4 @@ query_cache.json
 query_cache.json.*.tmp
 .railway/
 .firecrawl/
+.spike-auth/
