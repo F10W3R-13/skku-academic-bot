@@ -37,6 +37,11 @@ const AUTH_DIR = process.env.AUTH_DIR || undefined;
 const BAILEYS_AUTH_DIR =
   process.env.BAILEYS_AUTH_DIR ||
   (AUTH_DIR ? require("path").join(AUTH_DIR, "baileys-auth") : "baileys_auth");
+// QR 스캔이 어려운 환경용 대체 인증: PAIR_PHONE 에 번호(국가번호 포함, 숫자만)를
+// 넣으면 QR 대신 8자리 페어링 코드를 로그에 뽑는다(폰에서 '대신 코드로 연결').
+// 실측: requestPairingCode 는 QR 로테이션과 무관하게 세션당 1회만 호출해야 한다 —
+// 재호출하면 직전 코드가 무효화되고 세션이 loggedOut 으로 붕괴한다.
+const PAIR_PHONE = (process.env.PAIR_PHONE || "").replace(/[^0-9]/g, "") || null;
 
 let busy = false;
 let me = null; // "@c.us" 형태 후보들 — trigger.js 멘션 비교용
@@ -135,6 +140,7 @@ const handledIds = new Set();
 // S12 재연결: loggedOut(세션 폭사)만 creds 삭제+재QR, 나머지는 백오프 재연결.
 // 최근 실패 누적 시 대기를 늘려 무한 크래시 루프를 막는다.
 let reconnectDelays = [3000, 6000, 12000, 30000, 60000];
+let pairingRequested = false;
 
 async function start() {
   const { state, saveCreds } = await useMultiFileAuthState(BAILEYS_AUTH_DIR);
@@ -153,8 +159,23 @@ async function start() {
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
       latestQr = qr;
-      console.log("[auth] Scan this QR in WhatsApp: Settings > Linked Devices > Link a Device");
-      qrcode.generate(qr, { small: true });
+      if (PAIR_PHONE && !pairingRequested) {
+        pairingRequested = true;
+        sock
+          .requestPairingCode(PAIR_PHONE)
+          .then((code) => {
+            const pretty = code.match(/.{1,4}/g).join("-");
+            console.log(`[auth] PAIRING CODE: ${pretty}`);
+            console.log("[auth] 폰 WhatsApp > 연결된 기기 > 기기 연결 > 대신 코드로 연결");
+          })
+          .catch((e) => {
+            console.error("[auth] pairing code failed:", e.message);
+            pairingRequested = false;
+          });
+      } else {
+        console.log("[auth] Scan this QR in WhatsApp: Settings > Linked Devices > Link a Device");
+        qrcode.generate(qr, { small: true });
+      }
     }
     if (connection === "open") {
       reconnectDelays = [3000, 6000, 12000, 30000, 60000];
@@ -195,7 +216,10 @@ async function start() {
 
   // wwebjs 'message'+'message_create' 를 messages.upsert 하나로 통합 처리한다.
   // fromMe 분기는 processAsk/trigger 내부에서 이미 하던 일이라 표면은 동일하다.
-  sock.ev.on("messages.upsert", async ({ messages }) => {
+  sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    // 'append' 는 부팅 직후의 히스토리/오프라인 동기화다 — 옛날 !ask 에 늦답변하는
+    // 사고를 막기 위해 신규 메시지(notify)만 처리한다(wwebjs 대비 안전 강화).
+    if (type && type !== "notify") return;
     for (const m of messages) {
       const t = translateIncoming(m);
       try {
