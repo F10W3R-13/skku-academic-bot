@@ -32,6 +32,11 @@ if (!Array.isArray(GROUP_IDS) || GROUP_IDS.length === 0) {
 }
 
 const AUTH_DIR = process.env.AUTH_DIR || undefined;
+// Baileys 세션은 AUTH_DIR 하위 전용 폴더로 격리한다. AUTH_DIR(/data) 루트에는
+// index.json·logs 등이 살아 있고, loggedOut 시 세션 폴더만 삭제할 수 있어야 한다.
+const BAILEYS_AUTH_DIR =
+  process.env.BAILEYS_AUTH_DIR ||
+  (AUTH_DIR ? require("path").join(AUTH_DIR, "baileys-auth") : "baileys_auth");
 
 let busy = false;
 let me = null; // "@c.us" 형태 후보들 — trigger.js 멘션 비교용
@@ -132,7 +137,7 @@ const handledIds = new Set();
 let reconnectDelays = [3000, 6000, 12000, 30000, 60000];
 
 async function start() {
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+  const { state, saveCreds } = await useMultiFileAuthState(BAILEYS_AUTH_DIR);
   const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
   const sock = makeWASocket({
     auth: state,
@@ -178,7 +183,7 @@ async function start() {
       if (!shouldReconnect) {
         console.error("[auth] logged out — session invalid, deleting credentials for re-pair");
         try {
-          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+          fs.rmSync(BAILEYS_AUTH_DIR, { recursive: true, force: true });
         } catch {}
         process.exit(1); // Railway 재시작 → QR 재인증 (qr_server 이용)
       }
