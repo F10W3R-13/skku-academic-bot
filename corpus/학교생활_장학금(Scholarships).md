@@ -8,6 +8,18 @@ retrieved: 2026-08-21
 
 # Scholarships and Financial Aid (장학금)
 
+## 한국어 요약 (장학금 신청 방법)
+
+한국어 질의 대응용 요약. (아래 영문 절과 내용이 같다.)
+
+- **신청**: GLS → 신청자격관리 → 장학금 신청 메뉴에서 장학금신청서 작성 → 관련 서류를 구비해 **학부행정실(소속 학과 사무실)**에 제출.
+- **시기**: 장학금을 받을 학기의 직전 학기 말에 정해진 기간 내 신청. 기간은 학교 홈페이지(학부) 공지로 안내.
+- **성적 기준**(2005학년도 이후 입학자): 직전학기 **12학점 이상**(최종학기 직전학기는 9학점) + **평점평균 2.0 이상**.
+- **수령 계좌 등록**: GLS → 신청자격관리 → 장학금 신청 → 장학금 수령 메뉴에 **본인 계좌** 입력.
+- **지급 방식**: 원칙적으로 등록금 고지서에서 공제. 휴학 복학생·대외 재단 장학금은 현금 지급.
+- **대외(재단) 장학금**: 추천 요청은 홈페이지 공지사항·장학 게시판 또는 GLS [장학영역]-[장학보기]-[장학금모아보기]에서 확인. 추천서 직인은 skkujanghak@skku.edu (매주 금 11:00 마감).
+- **문의**: 학생지원팀 (studentaid@skku.edu). 교환학생(비학위)의 수혜 여부는 개별 안내이므로 학생지원팀에 확인.
+
 ##### Scholarship Eligibility
 
 - Students who have outstanding academic records, who have financial difficulties, who have submitted a complete scholarship application in time, or who have displayed exemplary conduct.
